@@ -109,7 +109,7 @@
        
      .message-content {
     max-width: 100%;
-    padding: 1rem 1.25rem;
+    padding: 1rem 1rem 1rem 1rem;
     border-radius: 18px;
     word-wrap: break-word;
     /* white-space: pre-wrap; */
@@ -302,7 +302,7 @@
             }
 
             .message-content {
-                max-width: 85%;
+                max-width: 90%;
             }
 
             .examples-grid {
@@ -323,9 +323,28 @@
             .message-content {
                 /* max-width: 90%; */
                 
-    white-space: pre-wrap;
+    /* white-space: pre-wrap; */
 
             }
+
+                .examples-container {
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        padding-bottom: 0.5rem;
+    }
+
+    .examples-grid {
+        display: inline-flex;
+        flex-direction: row;
+        gap: 0.5rem;
+        width: max-content;
+    }
+
+    .example-btn {
+        min-width: 180px;
+        white-space: normal;
+    }
         }
     </style>
 </head>
@@ -361,7 +380,7 @@
             <div class="examples-wrapper">
                 <p class="examples-title">💡 Exemples de questions :</p>
                 <div class="examples-grid">
-                                        <button class="example-btn" onclick="setInput('Mon radiateur ne chauffe pas')">🔥 Mon radiateur ne chauffe pas</button>
+                    <button class="example-btn" onclick="setInput('Mon radiateur ne chauffe pas')">🔥 Mon radiateur ne chauffe pas</button>
                     <button class="example-btn" onclick="setInput('J\'ai une fuite sous l\'évier')">💧 J'ai une fuite sous l'évier</button>
                     <button class="example-btn" onclick="setInput('De la moisissure sur les murs')">🦠 De la moisissure sur les murs</button>
                     <button class="example-btn" onclick="setInput('Mon voisin fait trop de bruit')">🔊 Mon voisin fait trop de bruit</button>
