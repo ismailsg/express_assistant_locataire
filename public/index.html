@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Assistant pour bien loger </title>
     <style>
         * {
@@ -380,6 +380,11 @@
             }
         }
 
+        @media (max-width: 768px) {
+    .input-field {
+        font-size: 16px;
+    }
+}
         @media (max-width: 480px) {
             .examples-container {
                 overflow-x: auto;
@@ -683,14 +688,14 @@ Fais des phrases courtes, avec des sauts de ligne entre chaque étape et action 
                 inputField.disabled = false;
                 sendBtn.disabled = false;
                 micBtn.disabled = false;
-                inputField.blur();
+                inputField.focus();
             }
         }
 
         // Définir le texte de l'input (pour les exemples)
         function setInput(text) {
             inputField.value = text;
-            inputField.blur();
+            inputField.focus();
         }
 
         // Gérer la touche Entrée
