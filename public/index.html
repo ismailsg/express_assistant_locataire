@@ -683,14 +683,14 @@ Fais des phrases courtes, avec des sauts de ligne entre chaque étape et action 
                 inputField.disabled = false;
                 sendBtn.disabled = false;
                 micBtn.disabled = false;
-                inputField.focus();
+                inputField.blur();
             }
         }
 
         // Définir le texte de l'input (pour les exemples)
         function setInput(text) {
             inputField.value = text;
-            inputField.focus();
+            inputField.blur();
         }
 
         // Gérer la touche Entrée
