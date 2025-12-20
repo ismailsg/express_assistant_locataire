@@ -580,6 +580,8 @@ Fais des phrases courtes, avec des sauts de ligne entre chaque étape et action 
             
             // Scroll vers le bas
             messagesWrapper.scrollTop = messagesWrapper.scrollHeight;
+
+            messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
             
             // Cacher les exemples après le premier message
             if (messagesWrapper.children.length > 1) {
@@ -600,6 +602,7 @@ Fais des phrases courtes, avec des sauts de ligne entre chaque étape et action 
             `;
             messagesWrapper.appendChild(loadingDiv);
             messagesWrapper.scrollTop = messagesWrapper.scrollHeight;
+            
         }
 
         // Cacher le loader
@@ -608,6 +611,7 @@ Fais des phrases courtes, avec des sauts de ligne entre chaque étape et action 
             if (loadingMessage) {
                 loadingMessage.remove();
             }
+            messagesWrapper.scrollTop = messagesWrapper.scrollHeight;
         }
 
         // Appeler l'API Groq
