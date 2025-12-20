@@ -106,21 +106,17 @@
             justify-content: flex-start;
         }
 
-       
-     .message-content {
-    max-width: 100%;
-    padding: 1rem 1rem 1rem 1rem;
-    border-radius: 18px;
-    word-wrap: break-word;
-    /* white-space: pre-wrap; */
-
-    display: flex;
-    flex-direction: column; /* empile le label et le texte */
-    justify-content: center; /* centre verticalement */
-    gap: 0.5rem; /* espace entre label et texte */
-}
+        .message-content {
+            max-width: 100%;
+            padding: 1rem 1rem 1rem 1rem;
+            border-radius: 18px;
+            word-wrap: break-word;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.5rem;
+        }
         
-
         .message.user .message-content {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -137,11 +133,38 @@
         .assistant-label {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 0.3rem;
             font-size: 0.75rem;
             font-weight: 600;
             color: #667eea;
             margin-bottom: 0.1rem;
+        }
+
+        .speaker-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .speaker-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .speaker-btn.speaking {
+            animation: soundWave 0.8s ease-in-out infinite;
+        }
+
+        @keyframes soundWave {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
         }
 
         .user-label {
@@ -255,6 +278,44 @@
             cursor: not-allowed;
         }
 
+        .mic-btn {
+            background: white;
+            border: 2px solid #e2e8f0;
+            width: 48px;
+            height: 48px;
+            border-radius: 24px;
+            color: #667eea;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            font-size: 20px;
+        }
+
+        .mic-btn:hover:not(:disabled) {
+            border-color: #667eea;
+            background: #f7fafc;
+        }
+
+        .mic-btn.recording {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: white;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .mic-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .send-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
@@ -313,38 +374,31 @@
                 padding: 1rem;
             }
 
-            .send-btn {
+            .send-btn, .mic-btn {
                 width: 44px;
                 height: 44px;
             }
         }
 
         @media (max-width: 480px) {
-            .message-content {
-                /* max-width: 90%; */
-                
-    /* white-space: pre-wrap; */
-
+            .examples-container {
+                overflow-x: auto;
+                overflow-y: hidden;
+                white-space: nowrap;
+                padding-bottom: 0.5rem;
             }
 
-                .examples-container {
-        overflow-x: auto;
-        overflow-y: hidden;
-        white-space: nowrap;
-        padding-bottom: 0.5rem;
-    }
+            .examples-grid {
+                display: inline-flex;
+                flex-direction: row;
+                gap: 0.5rem;
+                width: max-content;
+            }
 
-    .examples-grid {
-        display: inline-flex;
-        flex-direction: row;
-        gap: 0.5rem;
-        width: max-content;
-    }
-
-    .example-btn {
-        min-width: 180px;
-        white-space: normal;
-    }
+            .example-btn {
+                min-width: 180px;
+                white-space: normal;
+            }
         }
     </style>
 </head>
@@ -405,6 +459,9 @@
                     id="inputField"
                     placeholder="Décrivez votre problème de logement..."
                 />
+                <button class="mic-btn" id="micBtn" onclick="toggleRecording()" title="Enregistrement vocal">
+                    🎤
+                </button>
                 <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
             </div>
         </div>
@@ -412,7 +469,7 @@
 
     <script>
         // Configuration
-        const API_KEY = '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'; // ⚠️ REMPLACEZ PAR VOTRE CLÉ API GROQ
+        const API_KEY = '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';
         const API_URL = 'https://corsproxy.io/?https://api.groq.com/openai/v1/chat/completions';
         
         const SYSTEM_PROMPT = `Tu es un assistant spécialisé dans l'aide aux locataires français. Ton rôle est d'analyser les problèmes rencontrés dans leur logement et de fournir des solutions pratiques et claires.
@@ -452,11 +509,17 @@ Fais des phrases courtes, avec des sauts de ligne entre chaque étape et action 
         // Variables globales
         let conversationHistory = [];
         let isLoading = false;
+        let recognition = null;
+        let isRecording = false;
+        let speechSynthesis = window.speechSynthesis;
+        let currentUtterance = null;
+        let isSpeaking = false;
 
         // Éléments DOM
         const messagesWrapper = document.getElementById('messagesWrapper');
         const inputField = document.getElementById('inputField');
         const sendBtn = document.getElementById('sendBtn');
+        const micBtn = document.getElementById('micBtn');
         const examplesContainer = document.getElementById('examplesContainer');
 
         // Ajouter un message à l'interface
@@ -470,27 +533,36 @@ Fais des phrases courtes, avec des sauts de ligne entre chaque étape et action 
             if (role === 'assistant') {
                 const labelDiv = document.createElement('div');
                 labelDiv.className = 'assistant-label';
-                labelDiv.textContent = '💬 Votre Assistant';
+                
+                const labelText = document.createElement('span');
+                labelText.textContent = '💬 Votre Assistant';
+                labelDiv.appendChild(labelText);
+                
+                const speakerBtn = document.createElement('button');
+                speakerBtn.className = 'speaker-btn';
+                speakerBtn.innerHTML = '🔊';
+                speakerBtn.title = 'Écouter le message';
+                speakerBtn.onclick = function() {
+                    toggleSpeech(content, speakerBtn);
+                };
+                labelDiv.appendChild(speakerBtn);
+                
                 contentDiv.appendChild(labelDiv);
             }
 
             if (role === 'user') {
                 const labelDiv = document.createElement('div');
                 labelDiv.className = 'user-label';
-                // labelDiv.textContent = 'Vous';
                 const img = document.createElement('img');
-                img.src = 'images/user.png';   // chemin vers ton image
+                img.src = 'images/user.png';
                 img.alt = 'User';
                 img.className = 'user-label';
-
-    labelDiv.appendChild(img);
+                labelDiv.appendChild(img);
                 contentDiv.appendChild(labelDiv);
             }
             
             const textDiv = document.createElement('div');
             let htmlContent = content.replace(/\n/g, '<br>');
-    // Convertit les **gras** en <strong>
-            htmlContent = htmlContent.replace(/\n/g, '<br>');
             htmlContent = htmlContent.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
             htmlContent = htmlContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             htmlContent = htmlContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
@@ -534,50 +606,57 @@ Fais des phrases courtes, avec des sauts de ligne entre chaque étape et action 
         }
 
         // Appeler l'API Groq
-    async function callGroqAPI(userMessage) {
-    try {
-        conversationHistory.push({
-            role: 'user',
-            content: userMessage
-        });
-        // alert('Conversation History: ' + JSON.stringify(conversationHistory, null, 2));
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                messages: [
-                    { role: 'system', content: SYSTEM_PROMPT },
-                    ...conversationHistory
-                ]
-            })
-        });
+        async function callGroqAPI(userMessage) {
+            try {
+                conversationHistory.push({
+                    role: 'user',
+                    content: userMessage
+                });
 
-        if (!response.ok) throw new Error(`Erreur serveur: ${response.status}`);
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [
+                            { role: 'system', content: SYSTEM_PROMPT },
+                            ...conversationHistory
+                        ]
+                    })
+                });
 
-        const data = await response.json();
-        const assistantMessage = data.choices[0]?.message?.content || "Désolé, pas de réponse.";
+                if (!response.ok) throw new Error(`Erreur serveur: ${response.status}`);
 
-        conversationHistory.push({
-            role: 'assistant',
-            content: assistantMessage
-        });
+                const data = await response.json();
+                const assistantMessage = data.choices[0]?.message?.content || "Désolé, pas de réponse.";
 
-        return assistantMessage;
-    } catch (error) {
-        console.error('Erreur lors de l\'appel API:', error);
-        throw error;
-    }
-}
+                conversationHistory.push({
+                    role: 'assistant',
+                    content: assistantMessage
+                });
+
+                return assistantMessage;
+            } catch (error) {
+                console.error('Erreur lors de l\'appel API:', error);
+                throw error;
+            }
+        }
+
         // Envoyer un message
         async function sendMessage() {
             const message = inputField.value.trim();
             
             if (!message || isLoading) return;
             
+            // Arrêter l'enregistrement si actif
+            if (isRecording) {
+                stopRecording();
+            }
+            
             // Désactiver l'input
             isLoading = true;
             inputField.disabled = true;
             sendBtn.disabled = true;
+            micBtn.disabled = true;
             
             // Ajouter le message utilisateur
             addMessage(message, 'user');
@@ -603,6 +682,7 @@ Fais des phrases courtes, avec des sauts de ligne entre chaque étape et action 
                 isLoading = false;
                 inputField.disabled = false;
                 sendBtn.disabled = false;
+                micBtn.disabled = false;
                 inputField.focus();
             }
         }
@@ -621,10 +701,172 @@ Fais des phrases courtes, avec des sauts de ligne entre chaque étape et action 
             }
         });
 
+        // Initialiser la reconnaissance vocale
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                console.warn('La reconnaissance vocale n\'est pas supportée par ce navigateur');
+                micBtn.disabled = true;
+                micBtn.title = 'Reconnaissance vocale non supportée';
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'fr-FR';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = function(event) {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    inputField.value = (inputField.value + ' ' + finalTranscript).trim();
+                }
+            };
+
+            recognition.onerror = function(event) {
+                console.error('Erreur de reconnaissance vocale:', event.error);
+                if (event.error === 'no-speech') {
+                    console.log('Aucune parole détectée');
+                } else if (event.error === 'not-allowed') {
+                    alert('Veuillez autoriser l\'accès au microphone dans les paramètres de votre navigateur');
+                }
+                stopRecording();
+            };
+
+            recognition.onend = function() {
+                if (isRecording) {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.log('Erreur de redémarrage:', e);
+                        stopRecording();
+                    }
+                }
+            };
+        }
+
+        // Basculer l'enregistrement
+        function toggleRecording() {
+            if (!recognition) {
+                alert('La reconnaissance vocale n\'est pas disponible sur ce navigateur');
+                return;
+            }
+
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+
+        // Démarrer l'enregistrement
+        function startRecording() {
+            try {
+                recognition.start();
+                isRecording = true;
+                micBtn.classList.add('recording');
+                micBtn.innerHTML = '⏹️';
+                micBtn.title = 'Arrêter l\'enregistrement';
+                inputField.placeholder = '🎤 En écoute... Parlez maintenant';
+            } catch (error) {
+                console.error('Erreur lors du démarrage de l\'enregistrement:', error);
+            }
+        }
+
+        // Arrêter l'enregistrement
+        function stopRecording() {
+            if (recognition) {
+                recognition.stop();
+            }
+            isRecording = false;
+            micBtn.classList.remove('recording');
+            micBtn.innerHTML = '🎤';
+            micBtn.title = 'Enregistrement vocal';
+            inputField.placeholder = 'Décrivez votre problème de logement...';
+        }
+
         // Focus automatique sur l'input au chargement
         window.addEventListener('load', function() {
             inputField.focus();
+            initSpeechRecognition();
         });
+
+        // Fonction Text-to-Speech
+        function toggleSpeech(text, button) {
+            // Si déjà en train de parler, arrêter
+            if (isSpeaking) {
+                stopSpeech();
+                button.classList.remove('speaking');
+                button.innerHTML = '🔊';
+                button.title = 'Écouter le message';
+                return;
+            }
+
+            // Arrêter toute lecture en cours
+            stopSpeech();
+
+            // Nettoyer le texte des balises HTML et Markdown
+            const cleanText = text
+                .replace(/<br>/g, ' ')
+                .replace(/<[^>]*>/g, '')
+                .replace(/\*\*\*/g, '')
+                .replace(/\*\*/g, '')
+                .replace(/\*/g, '')
+                .trim();
+
+            // Créer une nouvelle instance de synthèse vocale
+            currentUtterance = new SpeechSynthesisUtterance(cleanText);
+            currentUtterance.lang = 'fr-FR';
+            currentUtterance.rate = 1.0;
+            currentUtterance.pitch = 1.0;
+            currentUtterance.volume = 1.0;
+
+            // Événements
+            currentUtterance.onstart = function() {
+                isSpeaking = true;
+                button.classList.add('speaking');
+                button.innerHTML = '⏸️';
+                button.title = 'Arrêter la lecture';
+            };
+
+            currentUtterance.onend = function() {
+                isSpeaking = false;
+                button.classList.remove('speaking');
+                button.innerHTML = '🔊';
+                button.title = 'Écouter le message';
+            };
+
+            currentUtterance.onerror = function(event) {
+                console.error('Erreur de synthèse vocale:', event);
+                isSpeaking = false;
+                button.classList.remove('speaking');
+                button.innerHTML = '🔊';
+                button.title = 'Écouter le message';
+            };
+
+            // Lancer la lecture
+            speechSynthesis.speak(currentUtterance);
+        }
+
+        // Arrêter la synthèse vocale
+        function stopSpeech() {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+            isSpeaking = false;
+        }
     </script>
 </body>
 </html>
